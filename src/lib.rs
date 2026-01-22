@@ -43,7 +43,7 @@ pub fn expect<F: FnOnce(Provider)>(name: &str, f: F) {
         panic!("expectation test {} is an invalid test name.  It must start with \"expectation_test_\"", name);
     }
 
-    let name = name.trim_left_matches("expectation_test_");
+    let name = name.trim_start_matches("expectation_test_");
     if !should_continue(name) {
         return;
     }
@@ -106,7 +106,7 @@ pub fn expect<F: FnOnce(Provider)>(name: &str, f: F) {
 
 fn validate<Fi: Fn(&Path) -> bool>(
     name: &str,
-    fs: Box<FileSystem>,
+    fs: Box<dyn FileSystem>,
     provider: Provider,
     filter: Fi,
 ) -> Vec<EResult> {

@@ -16,9 +16,10 @@ pub trait ImageDiffExtension {
     where
         N: AsRef<Path>,
     {
-        let mut w = self.png_writer(filename);
-        let dyn_image = DynamicImage::ImageRgb8(image);
-        dyn_image.write_to(&mut w, ImageOutputFormat::PNG).unwrap();
+        use image::codecs::png::PngEncoder;
+        let w = self.png_writer(filename);
+        let encoder = PngEncoder::new(w);
+        encoder.write_image(image.as_raw(), image.width(), image.height(), ColorType::Rgb8).unwrap();
         Ok(())
     }
 
@@ -26,9 +27,10 @@ pub trait ImageDiffExtension {
     where
         N: AsRef<Path>,
     {
-        let mut w = self.png_writer(filename);
-        let dyn_image = DynamicImage::ImageRgba8(image);
-        dyn_image.write_to(&mut w, ImageOutputFormat::PNG).unwrap();
+        use image::codecs::png::PngEncoder;
+        let w = self.png_writer(filename);
+        let encoder = PngEncoder::new(w);
+        encoder.write_image(image.as_raw(), image.width(), image.height(), ColorType::Rgba8).unwrap();
         Ok(())
     }
 }
@@ -50,8 +52,8 @@ fn image_eq<R1: ReadSeek, R2: ReadSeek>(r1: R1, r2: R2) -> IoResult<bool> {
     let mut r1 = BufReader::new(r1);
     let mut r2 = BufReader::new(r2);
 
-    let i1 = load(&mut r1, ImageFormat::PNG).unwrap();
-    let i2 = load(&mut r2, ImageFormat::PNG).unwrap();
+    let i1 = load(&mut r1, ImageFormat::Png).unwrap();
+    let i2 = load(&mut r2, ImageFormat::Png).unwrap();
 
     match (i1, i2) {
         (DynamicImage::ImageRgb8(i1), DynamicImage::ImageRgb8(i2)) => {
@@ -101,8 +103,8 @@ fn image_diff<R1: ReadSeek, R2: ReadSeek>(
     let mut r1 = BufReader::new(r1);
     let mut r2 = BufReader::new(r2);
 
-    let i1 = load(&mut r1, ImageFormat::PNG).unwrap();
-    let i2 = load(&mut r2, ImageFormat::PNG).unwrap();
+    let i1 = load(&mut r1, ImageFormat::Png).unwrap();
+    let i2 = load(&mut r2, ImageFormat::Png).unwrap();
 
     match (i1, i2) {
         (DynamicImage::ImageRgb8(i1), DynamicImage::ImageRgb8(i2)) => {
@@ -133,17 +135,17 @@ fn image_diff<R1: ReadSeek, R2: ReadSeek>(
         }
         (DynamicImage::ImageRgb8(_), DynamicImage::ImageRgba8(_)) => {
             return write_requester.request(path.join("img-format.txt"), |w| {
-                writeln!(w, "image formats are different");
-                writeln!(w, "actual:   RGB8");
-                writeln!(w, "expected: RGBA8 (Alpha)");
+                writeln!(w, "image formats are different")?;
+                writeln!(w, "actual:   RGB8")?;
+                writeln!(w, "expected: RGBA8 (Alpha)")?;
                 Ok(())
             });
         }
         (DynamicImage::ImageRgba8(_), DynamicImage::ImageRgb8(_)) => {
             return write_requester.request(path.join("img-format.txt"), |w| {
-                writeln!(w, "image formats are different");
-                writeln!(w, "actual:   RGBA8 (Alpha)");
-                writeln!(w, "expected: RGB8");
+                writeln!(w, "image formats are different")?;
+                writeln!(w, "actual:   RGBA8 (Alpha)")?;
+                writeln!(w, "expected: RGB8")?;
                 Ok(())
             });
         }

@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use expectation_shared::filesystem::{FileSystem, ReadSeek};
 
 pub struct WriteRequester {
-    pub(crate) fs: Box<FileSystem>,
+    pub(crate) fs: Box<dyn FileSystem>,
     pub(crate) files: Vec<PathBuf>,
 }
 
@@ -13,7 +13,7 @@ impl WriteRequester {
     pub fn request<S, Fn>(&mut self, path: S, mut f: Fn) -> IoResult<()>
     where
         S: AsRef<Path>,
-        Fn: for<'a> FnMut(&'a mut Write) -> IoResult<()>,
+        Fn: for<'a> FnMut(&'a mut dyn Write) -> IoResult<()>,
     {
         let mut v = vec![];
         v.push(1u8);
@@ -24,24 +24,24 @@ impl WriteRequester {
 
 pub(crate) type Files = Vec<(
         PathBuf,
-        Box<for<'a> Fn(&'a mut ReadSeek, &'a mut ReadSeek) -> IoResult<bool>>,
+        Box<dyn for<'a> Fn(&'a mut dyn ReadSeek, &'a mut dyn ReadSeek) -> IoResult<bool>>,
         Box<
-            for<'b> Fn(&'b mut ReadSeek, &'b mut ReadSeek, &'b Path, &'b mut WriteRequester)
+            dyn for<'b> Fn(&'b mut dyn ReadSeek, &'b mut dyn ReadSeek, &'b Path, &'b mut WriteRequester)
                 -> IoResult<()>,
         >,
     )>;
 
 pub struct Provider {
     #[cfg_attr(not(test), allow(dead_code))]
-    pub(crate) root_fs: Box<FileSystem>,
-    pub(crate) fs: Box<FileSystem>,
+    pub(crate) root_fs: Box<dyn FileSystem>,
+    pub(crate) fs: Box<dyn FileSystem>,
     pub(crate) files: Arc<Mutex<Files>>,
     cur_offset: PathBuf,
 }
 
 pub struct Writer {
     inner: Vec<u8>,
-    filesystem: Box<FileSystem>,
+    filesystem: Box<dyn FileSystem>,
     path: PathBuf,
 }
 
@@ -57,7 +57,7 @@ impl Clone for Provider {
 }
 
 impl Writer {
-    fn new(filesystem: Box<FileSystem>, path: PathBuf) -> Self {
+    fn new(filesystem: Box<dyn FileSystem>, path: PathBuf) -> Self {
         Writer {
             filesystem,
             path,
@@ -77,7 +77,7 @@ impl Provider {
         }
     }
 
-    pub fn new(root_fs: Box<FileSystem>, fs: Box<FileSystem>) -> Provider {
+    pub fn new(root_fs: Box<dyn FileSystem>, fs: Box<dyn FileSystem>) -> Provider {
         Provider {
             root_fs,
             fs,
@@ -119,8 +119,8 @@ impl Provider {
     pub fn custom_test<S, C, D>(&self, name: S, compare: C, diff: D) -> Writer
     where
         S: AsRef<Path>,
-        C: for<'a> Fn(&'a mut (ReadSeek), &'a mut (ReadSeek)) -> IoResult<bool> + 'static,
-        D: for<'b> Fn(&'b mut (ReadSeek), &'b mut (ReadSeek), &'b Path, &'b mut WriteRequester) -> IoResult<()>
+        C: for<'a> Fn(&'a mut dyn ReadSeek, &'a mut dyn ReadSeek) -> IoResult<bool> + 'static,
+        D: for<'b> Fn(&'b mut dyn ReadSeek, &'b mut dyn ReadSeek, &'b Path, &'b mut WriteRequester) -> IoResult<()>
             + 'static,
     {
         let name: PathBuf = name.as_ref().into();
@@ -138,7 +138,7 @@ impl Provider {
 #[test]
 fn writer_does_not_write_to_filesystem_if_not_written_to() {
     use expectation_shared::filesystem::*;
-    let filesystem = Box::new(FakeFileSystem::new()) as Box<FileSystem>;
+    let filesystem = Box::new(FakeFileSystem::new()) as Box<dyn FileSystem>;
     {
         let _writer = Writer::new(filesystem.duplicate(), "foo.txt".into());
     }
